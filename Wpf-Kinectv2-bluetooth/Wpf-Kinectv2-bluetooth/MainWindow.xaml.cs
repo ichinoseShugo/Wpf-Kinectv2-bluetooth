@@ -69,7 +69,7 @@ namespace Wpf_Kinectv2_bluetooth
         }
 
         /// <summary>
-        /// Windowがロードされた時の処理（初期化処理）
+        /// Windowがロードされた時の処理（初期化処理）bluetoothの初期化はボタンで行う
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -90,6 +90,39 @@ namespace Wpf_Kinectv2_bluetooth
                 Close();
             }
         }
+
+        /// <summary>
+        /// Windowが閉じるときの処理（終了処理）
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            StopWatch.Stop();
+
+            if (sw != null) sw.Close();
+
+            if (colorFrameReader != null)
+            {
+                colorFrameReader.Dispose();
+                colorFrameReader = null;
+            }
+
+            if (bodyFrameReader != null)
+            {
+                bodyFrameReader.Dispose();
+                bodyFrameReader = null;
+            }
+
+            if (kinect != null)
+            {
+                kinect.Close();
+                kinect = null;
+            }
+        }
+
+        //kinect関連
+        //----------------------------------------------------------------------------------------------------------------------------------------
 
         /// <summary>
         /// Kinectの抜き差し検知イベント
@@ -198,6 +231,8 @@ namespace Wpf_Kinectv2_bluetooth
                     if (joint.Value.JointType == JointType.HandRight)
                     {
                         DrawEllipse(joint.Value, 10, Brushes.Red);
+
+                        //記録ボタンが押してあるなら座標を書き込み
                         if (RecordPoints.IsChecked == true)
                             sw.WriteLine(StopWatch.ElapsedMilliseconds + ","
                             + joint.Value.Position.X + ","
@@ -206,6 +241,7 @@ namespace Wpf_Kinectv2_bluetooth
                     }
                     else
                     {
+                        //他の関節の描画
                         DrawEllipse(joint.Value, 10, Brushes.Blue);
                     }
                 }
@@ -239,36 +275,6 @@ namespace Wpf_Kinectv2_bluetooth
             Canvas.SetTop(ellipse, point.Y - (R / 2));
 
             CanvasBody.Children.Add(ellipse);
-        }
-
-        /// <summary>
-    /// Windowが閉じるときの処理（終了処理）
-    /// </summary>
-    /// <param name="sender"></param>
-    /// <param name="e"></param>
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            StopWatch.Stop();
-            
-            if (sw != null) sw.Close();
-
-            if (colorFrameReader != null)
-            {
-                colorFrameReader.Dispose();
-                colorFrameReader = null;
-            }
-
-            if (bodyFrameReader != null)
-            {
-                bodyFrameReader.Dispose();
-                bodyFrameReader = null;
-            }
-
-            if (kinect != null)
-            {
-                kinect.Close();
-                kinect = null;
-            }
         }
 
         //bluetooth
@@ -468,6 +474,9 @@ namespace Wpf_Kinectv2_bluetooth
             );
         }
 
+        //ファイル書き込み
+        //----------------------------------------------------------------------------------------------------------------------------------------
+
         /// <summary>
         /// 座標記録ボタンのイベント
         /// </summary>
@@ -502,7 +511,7 @@ namespace Wpf_Kinectv2_bluetooth
         }
 
         /// <summary>
-        /// 桁の補正
+        /// 1桁の場合の桁の補正：1時1分→0101
         /// </summary>
         /// <param name="date"></param>
         /// <returns></returns>
