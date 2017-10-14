@@ -1,10 +1,17 @@
 ﻿using System;
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
+using Microsoft.Kinect;
 
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Rfcomm;
 using Windows.Networking.Sockets;
 using Windows.Storage.Streams;
+using System.IO;
 
 namespace Wpf_Kinectv2_bluetooth
 {
@@ -13,6 +20,13 @@ namespace Wpf_Kinectv2_bluetooth
     /// </summary>
     public partial class MainWindow : Window
     {
+        private KinectSensor kinect;
+        ColorFrameReader colorFrameReader;
+        FrameDescription colorFrameDesc;
+        byte[] colorBuffer;
+        BodyFrameReader bodyFrameReader;
+        Body[] bodies;
+
         private RfcommServiceProvider rfcommProvider;
         private StreamSocketListener socketListener;
         private StreamSocket socket;
@@ -24,6 +38,23 @@ namespace Wpf_Kinectv2_bluetooth
         public int startflag = 1;
         public int connectflag = 1;
 
+        /// <summary>
+        /// 日付と時刻
+        /// </summary>
+        static public DateTime dt = DateTime.Now;
+        /// <summary>
+        /// マイドキュメント下のKinectフォルダへのパス
+        /// </summary>
+        static public string pathKinect = Environment.GetFolderPath(Environment.SpecialFolder.Personal) + "/Kinect";
+        /// <summary>
+        /// 保存先のフォルダ
+        /// </summary>
+        static public string pathSaveFolder = pathKinect + "/TrainingData/" 
+            + dt.Year + digits(dt.Month) + digits(dt.Day) + digits(dt.Hour) + digits(dt.Minute) + "/";
+        /// <summary>
+        /// 座標書き込み用ストリーム
+        /// </summary>
+        private StreamWriter sw = null;
         /// <summary>
         /// 時間計測用ストップウォッチ
         /// </summary>
@@ -37,6 +68,231 @@ namespace Wpf_Kinectv2_bluetooth
             InitializeComponent();
         }
 
+        /// <summary>
+        /// Windowがロードされた時の処理（初期化処理）
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                //kinectを開く
+                kinect = KinectSensor.GetDefault();
+                kinect.Open();
+
+                // 抜き差し検出イベントを設定
+                kinect.IsAvailableChanged += kinect_IsAvailableChanged;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                Close();
+            }
+        }
+
+        /// <summary>
+        /// Kinectの抜き差し検知イベント
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void kinect_IsAvailableChanged(object sender, IsAvailableChangedEventArgs e)
+        {
+            // Kinectが接続された
+            if (e.IsAvailable)
+            {
+                Check.Text = "Connect";
+                // カラーを設定する
+                if (colorFrameReader == null)
+                {
+                    //カラー画像の情報を作成する（BGRA）
+                    colorFrameDesc = kinect.ColorFrameSource.CreateFrameDescription(ColorImageFormat.Bgra);
+
+                    //データを読み込むカラーリーダーを開くとイベントハンドラの登録
+                    colorFrameReader = kinect.ColorFrameSource.OpenReader();
+                    colorFrameReader.FrameArrived += colorFrameReader_FrameArrived;
+                }
+
+                if (bodyFrameReader == null)
+                {
+                    // Bodyを入れる配列を作る
+                    bodies = new Body[kinect.BodyFrameSource.BodyCount];
+
+                    // ボディーリーダーを開く
+                    bodyFrameReader = kinect.BodyFrameSource.OpenReader();
+                    bodyFrameReader.FrameArrived += bodyFrameReader_FrameArrived;
+                }
+            }
+            // Kinectが外された
+            else
+            {
+                Check.Text="UnConnect";
+            }
+        }
+
+        /// <summary>
+        /// カラーフレームを取得した時のイベント
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void colorFrameReader_FrameArrived(object sender, ColorFrameArrivedEventArgs e)
+        {
+            using (var colorFrame = e.FrameReference.AcquireFrame())
+            {
+                if(colorFrame == null)
+                {
+                    return;
+                }
+
+                //BGRAデータを登録
+                colorBuffer = new byte[colorFrameDesc.Width * colorFrameDesc.Height * colorFrameDesc.BytesPerPixel];
+                colorFrame.CopyConvertedFrameDataToArray(colorBuffer, ColorImageFormat.Bgra);
+
+                //ビットマップにする
+                ImageColor.Source = BitmapSource.Create(colorFrameDesc.Width, colorFrameDesc.Height, 96, 96, 
+                    PixelFormats.Bgra32, null, colorBuffer, colorFrameDesc.Width * (int)colorFrameDesc.BytesPerPixel);
+            }
+        }
+
+        /// <summary>
+        /// ボディフレームを取得した時のイベント
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void bodyFrameReader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
+        {
+            UpdateBodyFrame(e);
+            DrawBodyFrame();
+        }
+
+        /// <summary>
+        /// ボディの更新
+        /// </summary>
+        /// <param name="e"></param>
+        private void UpdateBodyFrame(BodyFrameArrivedEventArgs e)
+        {
+            using (var bodyFrame = e.FrameReference.AcquireFrame())
+            {
+                if (bodyFrame == null)
+                {
+                    return;
+                }
+
+                // ボディデータを取得する
+                bodyFrame.GetAndRefreshBodyData(bodies);
+            }
+        }
+
+        /// <summary>
+        /// ボディの表示
+        /// </summary>
+        private void DrawBodyFrame()
+        {
+            CanvasBody.Children.Clear();
+
+            foreach (var body in bodies.Where(b => b.IsTracked))
+            {
+                foreach (var joint in body.Joints)
+                {
+                    //左手の座標を表示
+                    if (joint.Value.JointType == JointType.HandRight)
+                    {
+                        DrawEllipse(joint.Value, 10, Brushes.Red);
+                        if (RecordPoints.IsChecked == true)
+                            sw.WriteLine(StopWatch.ElapsedMilliseconds + ","
+                            + joint.Value.Position.X + ","
+                            + joint.Value.Position.Y + ","
+                            + joint.Value.Position.X);
+                    }
+                    else
+                    {
+                        DrawEllipse(joint.Value, 10, Brushes.Blue);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 関節の描画
+        /// </summary>
+        /// <param name="joint"></param>
+        /// <param name="R"></param>
+        /// <param name="brush"></param>
+        private void DrawEllipse(Joint joint, int R, Brush brush)
+        {
+            var ellipse = new Ellipse()
+            {
+                Width = R,
+                Height = R,
+                Fill = brush,
+            };
+
+            // カメラ座標系をDepth座標系に変換する
+            var point = kinect.CoordinateMapper.MapCameraPointToDepthSpace(joint.Position);
+            if ((point.X < 0) || (point.Y < 0))
+            {
+                return;
+            }
+
+            // Depth座標系で円を配置する
+            Canvas.SetLeft(ellipse, point.X - (R / 2));
+            Canvas.SetTop(ellipse, point.Y - (R / 2));
+
+            CanvasBody.Children.Add(ellipse);
+        }
+
+        /// <summary>
+    /// Windowが閉じるときの処理（終了処理）
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            StopWatch.Stop();
+            
+            if (sw != null) sw.Close();
+
+            if (colorFrameReader != null)
+            {
+                colorFrameReader.Dispose();
+                colorFrameReader = null;
+            }
+
+            if (bodyFrameReader != null)
+            {
+                bodyFrameReader.Dispose();
+                bodyFrameReader = null;
+            }
+
+            if (kinect != null)
+            {
+                kinect.Close();
+                kinect = null;
+            }
+        }
+
+        //bluetooth
+        //----------------------------------------------------------------------------------------------------------------------------------------
+        
+        /// <summary>
+        /// ConnectButtonを押すことでListeningの開始・終了を指定
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ConnectButton_Click(object sender, System.Windows.RoutedEventArgs e)
+        {
+            if (ConnectButton.IsChecked == true)
+            {
+                InitializeRfcommServer();
+                ConnectButton.Content = "Stop Listening";
+            }
+            else
+            {
+                Disconnect();
+                ConnectButton.Content = "Start Listening";
+            }
+        }
+        
         /// <summary>
         /// RfcommServerの初期化
         /// </summary>
@@ -207,141 +463,53 @@ namespace Wpf_Kinectv2_bluetooth
             }
             await Dispatcher.BeginInvoke(
                 new Action(() => {
-                    ListenButton.IsEnabled = true;
-                    /*
-                    SendButton.IsEnabled = false;
-                    */
-
+                    ConnectButton.IsEnabled = true;
                 })
             );
         }
 
         /// <summary>
-        /// メッセージの受信
-        /// </summary>
-        private async void ReadMessage()
-        {
-
-            try
-            {
-                MessageBox.Show("実験");
-                if (socket != null)
-                {
-                    //byte[] bytes = new byte[10];
-                    MessageBox.Show("1");
-                    uint readLength = await reader.LoadAsync(sizeof(uint));
-                    MessageBox.Show("2");
-                    // Check if the size of the data is expected (otherwise the remote has already terminated the connection)
-                    uint currentLength = reader.ReadUInt32();
-
-                    // Load the rest of the message since you already know the length of the data expected.  
-                    readLength = await reader.LoadAsync(currentLength);
-
-                    // Check if the size of the data is expected (otherwise the remote has already terminated the connection)
-                    string message = reader.ReadString(currentLength);
-                    MessageBox.Show(message);
-                }
-            }
-            catch (Exception ex)
-            {
-                lock (this)
-                {
-                    if (socket == null)
-                    {
-                        // Do not print anything here -  the user closed the sock
-                    }
-                    else
-                    {
-                        Disconnect();
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// メッセージの送信
-        /// </summary>
-        private async void SendMessage()
-        {
-            // There's no need to send a zero length message
-            // Make sure that the connection is still up and there is a message to send
-            if (socket != null)
-            {
-                string message = "1234";
-                byte[] data = System.Text.Encoding.UTF8.GetBytes(message);
-                /*
-                writer.WriteUInt32((uint)message.Length);
-                */
-                writer.WriteBytes(data);
-                //writer.WriteInt16(1);
-                // Clear the messageTextBox for a new message
-
-                await writer.StoreAsync();
-
-                var count = await reader.LoadAsync(256);
-
-                while (true)
-                {
-                    string text = reader.ReadString(count);
-                    MessageBox.Show(text);
-                    count = await reader.LoadAsync(256);
-                }
-
-            }
-        }
-
-        /// <summary>
-        /// ListeningButtonを押すことでListeningの開始・終了を指定
+        /// 座標記録ボタンのイベント
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ListenButton_Click(object sender, System.Windows.RoutedEventArgs e)
+        private void RecordPoints_Click(object sender, RoutedEventArgs e)
         {
-            if (ListenButton.IsChecked == true)
+            //初めて押したとき
+            if (sw == null)
             {
-                InitializeRfcommServer();
-                ListenButton.Content = "Stop Listening";
+                //MY Document直下にKinectフォルダを作成
+                Directory.CreateDirectory(pathKinect);
+                //ファイル書き込み用のdirectoryを用意
+                Directory.CreateDirectory(pathSaveFolder);
+
+                //Bluetoothの受け入れができてないときはRecordPointsボタンを押したときストップウォッチスタート
+                if(ConnectButton.IsChecked==false)StopWatch.Start();
+            }
+
+            if (RecordPoints.IsChecked == true)
+            {
+                //座標書き込み用csvファイルを用意
+                sw = new StreamWriter(pathSaveFolder + "Points.csv", true);
+                RecordPoints.Content = "Stop Record";
             }
             else
             {
-                Disconnect();
-                ListenButton.Content = "Start Listening";
+                sw.WriteLine();
+                sw.Close();
+                RecordPoints.Content = "Start Record";
             }
         }
 
         /// <summary>
-        /// ReadButtonを押すことでメッセージを受信
+        /// 桁の補正
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void ReadButton_Click(object sender, System.Windows.RoutedEventArgs e)
+        /// <param name="date"></param>
+        /// <returns></returns>
+        static public String digits(int date)
         {
-            ReadMessage();
-        }
-
-        /// <summary>
-        /// SendButtonを押すことでメッセージを送信
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void SendButton_Click(object sender, System.Windows.RoutedEventArgs e)
-        {
-            SendMessage();
-        }
-
-        private void RecordPoints_Checked(object sender, RoutedEventArgs e)
-        {
-
-        }
-
-        /// <summary>
-        /// DisconnectButtonを押すと切断
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void DisconnectButton_Click(object sender, System.Windows.RoutedEventArgs e)
-        {
-            Disconnect();
+            if (date / 10 == 0) return "0" + date;
+            else return date.ToString();
         }
     }
 }

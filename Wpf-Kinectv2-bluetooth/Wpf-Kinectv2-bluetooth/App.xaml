@@ -4,6 +4,6 @@
              xmlns:local="clr-namespace:Wpf_Kinectv2_bluetooth"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        
     </Application.Resources>
 </Application>

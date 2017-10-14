@@ -5,14 +5,18 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Wpf_Kinectv2_bluetooth"
         mc:Ignorable="d"
-        Title="MainWindow" Height="600" Width="640">
+        Title="MainWindow" Height="640" Width="960"
+        Loaded="Window_Loaded" Closing="Window_Closing">
     <Grid>
-        <CheckBox x:Name="RecordPoints" Content="Points" HorizontalAlignment="Left" Margin="301,523,0,0" VerticalAlignment="Top" Checked="RecordPoints_Checked"/>
-        <StackPanel >
-            <ToggleButton x:Name="ListenButton" Margin="40,520,500,0" Click="ListenButton_Click" Content="Start Listening"/>
-            <TextBlock x:Name="DeviceName" TextWrapping="Wrap" Text="nonDevice"/>
+        <Image x:Name="ImageColor" Width="960" Height="540" />
+        <ToggleButton x:Name="RecordPoints" Click="RecordPoints_Click" Content="Start Record" HorizontalAlignment="Left" Margin="0" VerticalAlignment="Bottom"/>
+        <ToggleButton x:Name="ConnectButton" Click="ConnectButton_Click" Content="Start Listening" HorizontalAlignment="Left" VerticalAlignment="Bottom" HorizontalContentAlignment="Center" Margin="92,0,0,0.4"/>
+        <TextBlock x:Name="Check" TextWrapping="Wrap" Text="Connect" Margin="250,0,-250.4,3.4" VerticalAlignment="Bottom"/>
+        <Canvas x:Name="CanvasBody"  Width="512" Height="424"/>
+        <StackPanel Orientation="Vertical">
+            <TextBlock x:Name="TextBodyCount1"/>
+            <TextBlock x:Name="TextBodyCount2"/>
+            <TextBlock x:Name="TextBodyCount3"/>
         </StackPanel>
-        <Button x:Name="ReadButton" Content="Read" HorizontalAlignment="Left" Margin="141,520,0,0" VerticalAlignment="Top" Width="75" Click="ReadButton_Click"/>
-        <Button x:Name="SendButton" Content="Send" HorizontalAlignment="Left" Margin="221,520,0,0" VerticalAlignment="Top" Width="75" Click="SendButton_Click"/>
     </Grid>
 </Window>
