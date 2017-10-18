@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Drawing;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+
 using Microsoft.Kinect;
 
 using Windows.Devices.Bluetooth;
@@ -12,6 +14,10 @@ using Windows.Devices.Bluetooth.Rfcomm;
 using Windows.Networking.Sockets;
 using Windows.Storage.Streams;
 using System.IO;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
+using System.Threading.Tasks;
+using System.ComponentModel;
 
 namespace Wpf_Kinectv2_bluetooth
 {
@@ -20,12 +26,12 @@ namespace Wpf_Kinectv2_bluetooth
     /// </summary>
     public partial class MainWindow : Window
     {
-        private KinectSensor kinect;
-        ColorFrameReader colorFrameReader;
-        FrameDescription colorFrameDesc;
-        byte[] colorBuffer;
-        BodyFrameReader bodyFrameReader;
-        Body[] bodies;
+        public KinectSensor kinect;
+        public ColorFrameReader colorFrameReader;
+        public FrameDescription colorFrameDesc;
+        public byte[] colorBuffer;
+        public BodyFrameReader bodyFrameReader;
+        public Body[] bodies;
 
         private RfcommServiceProvider rfcommProvider;
         private StreamSocketListener socketListener;
@@ -51,6 +57,8 @@ namespace Wpf_Kinectv2_bluetooth
         /// </summary>
         static public string pathSaveFolder = pathKinect + "/TrainingData/" 
             + dt.Year + digits(dt.Month) + digits(dt.Day) + digits(dt.Hour) + digits(dt.Minute) + "/";
+
+        static public string pathImageSaveFolder = pathSaveFolder + "image/";
         /// <summary>
         /// 座標書き込み用ストリーム
         /// </summary>
@@ -58,7 +66,16 @@ namespace Wpf_Kinectv2_bluetooth
         /// <summary>
         /// 時間計測用ストップウォッチ
         /// </summary>
-        System.Diagnostics.Stopwatch StopWatch = new System.Diagnostics.Stopwatch();
+        public static System.Diagnostics.Stopwatch StopWatch = new System.Diagnostics.Stopwatch();
+
+        /// <summary>
+        /// 画像保存用bitmap source
+        /// </summary>
+        public static BitmapSource bitmapSource = null;
+        /// <summary>
+        /// frame数のカウント
+        /// </summary>
+        static int frameCount = 0;
 
         public TimeSpan DelayTime1;
         public TimeSpan DelayTime2;
@@ -75,20 +92,8 @@ namespace Wpf_Kinectv2_bluetooth
         /// <param name="e"></param>
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                //kinectを開く
-                kinect = KinectSensor.GetDefault();
-                kinect.Open();
-
-                // 抜き差し検出イベントを設定
-                kinect.IsAvailableChanged += kinect_IsAvailableChanged;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-                Close();
-            }
+            InitializeKinect();
+            InitializeFile();
         }
 
         /// <summary>
@@ -119,6 +124,71 @@ namespace Wpf_Kinectv2_bluetooth
                 kinect.Close();
                 kinect = null;
             }
+        }
+
+        /// <summary>
+        /// kinectの初期化
+        /// </summary>
+        void InitializeKinect()
+        {
+            try
+            {
+                //kinectを開く
+                kinect = KinectSensor.GetDefault();
+                kinect.Open();
+
+                // 抜き差し検出イベントを設定
+                kinect.IsAvailableChanged += kinect_IsAvailableChanged;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                Close();
+            }
+        }
+
+        /// <summary>
+        /// ファイル関連の初期化
+        /// </summary>
+        void InitializeFile()
+        {
+            //SourceChangeHandlerの登録
+            var prop = DependencyPropertyDescriptor.FromProperty
+                (System.Windows.Controls.Image.SourceProperty, typeof(System.Windows.Controls.Image));
+            prop.AddValueChanged(this.ImageColor, SourceChangedHandler);
+        }
+
+        /// <summary>
+        /// bitmapSourceが変わった時のイベント
+        /// 非同期でファイル書き込みをさせたい
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void SourceChangedHandler(object sender, EventArgs e)
+        {
+            /*
+            Func<bool> LongTimeProc = () =>
+            {
+                //時間のかかる処理
+                //System.Threading.Thread.Sleep(100);
+                if (RecordPoints.IsChecked == true && RecordPoints.IsChecked == false)
+                {
+                    using (Stream stream =
+                    new FileStream(pathSaveFolder + "image/" + StopWatch.ElapsedMilliseconds + ".jpg", FileMode.Create))
+                    {
+                        JpegBitmapEncoder encoder = new JpegBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
+                        encoder.Save(stream);
+                        stream.Close();
+                    }
+                }
+                return true;
+            };
+
+            // 非同期で処理を実行（完了を待機する）
+            // 制御がメインスレッドに戻るため、画面全体が固まることはない
+            await Task.Run(LongTimeProc);
+            */
         }
 
         //kinect関連
@@ -176,14 +246,27 @@ namespace Wpf_Kinectv2_bluetooth
                 {
                     return;
                 }
-
                 //BGRAデータを登録
                 colorBuffer = new byte[colorFrameDesc.Width * colorFrameDesc.Height * colorFrameDesc.BytesPerPixel];
                 colorFrame.CopyConvertedFrameDataToArray(colorBuffer, ColorImageFormat.Bgra);
-
-                //ビットマップにする
-                ImageColor.Source = BitmapSource.Create(colorFrameDesc.Width, colorFrameDesc.Height, 96, 96, 
-                    PixelFormats.Bgra32, null, colorBuffer, colorFrameDesc.Width * (int)colorFrameDesc.BytesPerPixel);
+                
+                bitmapSource = BitmapSource.Create(colorFrameDesc.Width, colorFrameDesc.Height, 96, 96,
+                PixelFormats.Bgra32, null, colorBuffer, colorFrameDesc.Width * (int)colorFrameDesc.BytesPerPixel);
+                //ImageColor.Source = bitmapSource;
+                ImageColor.SetCurrentValue(System.Windows.Controls.Image.SourceProperty, bitmapSource);
+                
+                if (RecordPoints.IsChecked == true && frameCount % 2 ==0)
+                {
+                    using (Stream stream =
+                    new FileStream(pathSaveFolder + "image/" + StopWatch.ElapsedMilliseconds + ".jpg", FileMode.Create))
+                    {
+                        JpegBitmapEncoder encoder = new JpegBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
+                        encoder.Save(stream);
+                        stream.Close();
+                    }
+                }
+                frameCount++;
             }
         }
 
@@ -222,7 +305,6 @@ namespace Wpf_Kinectv2_bluetooth
         private void DrawBodyFrame()
         {
             CanvasBody.Children.Clear();
-
             foreach (var body in bodies.Where(b => b.IsTracked))
             {
                 foreach (var joint in body.Joints)
@@ -230,19 +312,21 @@ namespace Wpf_Kinectv2_bluetooth
                     //左手の座標を表示
                     if (joint.Value.JointType == JointType.HandRight)
                     {
-                        DrawEllipse(joint.Value, 10, Brushes.Red);
+                        DrawEllipse(joint.Value, 10, System.Windows.Media.Brushes.Red);
 
                         //記録ボタンが押してあるなら座標を書き込み
                         if (RecordPoints.IsChecked == true)
+                        {
                             sw.WriteLine(StopWatch.ElapsedMilliseconds + ","
                             + joint.Value.Position.X + ","
                             + joint.Value.Position.Y + ","
                             + joint.Value.Position.X);
+                        }
                     }
                     else
                     {
                         //他の関節の描画
-                        DrawEllipse(joint.Value, 10, Brushes.Blue);
+                        DrawEllipse(joint.Value, 10, System.Windows.Media.Brushes.Blue);
                     }
                 }
             }
@@ -254,7 +338,7 @@ namespace Wpf_Kinectv2_bluetooth
         /// <param name="joint"></param>
         /// <param name="R"></param>
         /// <param name="brush"></param>
-        private void DrawEllipse(Joint joint, int R, Brush brush)
+        private void DrawEllipse(Joint joint, int R, System.Windows.Media.Brush brush)
         {
             var ellipse = new Ellipse()
             {
@@ -489,11 +573,13 @@ namespace Wpf_Kinectv2_bluetooth
             {
                 //MY Document直下にKinectフォルダを作成
                 Directory.CreateDirectory(pathKinect);
-                //ファイル書き込み用のdirectoryを用意
+                //座標書き込み用のdirectoryを用意
                 Directory.CreateDirectory(pathSaveFolder);
+                //画像書き込み用のdirectoryを用意
+                Directory.CreateDirectory(pathImageSaveFolder);
 
                 //Bluetoothの受け入れができてないときはRecordPointsボタンを押したときストップウォッチスタート
-                if(ConnectButton.IsChecked==false)StopWatch.Start();
+                if (ConnectButton.IsChecked==false)StopWatch.Start();
             }
 
             if (RecordPoints.IsChecked == true)
