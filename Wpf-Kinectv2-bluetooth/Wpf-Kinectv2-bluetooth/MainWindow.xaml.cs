@@ -309,6 +309,15 @@ namespace Wpf_Kinectv2_bluetooth
             {
                 foreach (var joint in body.Joints)
                 {
+                    if (StopWatch.ElapsedMilliseconds >= 66000)
+                    {
+                        RecordPoints.IsChecked = false;
+                        StopWatch.Reset();
+                        sw.WriteLine();
+                        sw.Close();
+                        RecordPoints.Content = "Start Record";
+
+                    }
                     //左手の座標を表示
                     if (joint.Value.JointType == JointType.HandRight)
                     {
@@ -375,6 +384,18 @@ namespace Wpf_Kinectv2_bluetooth
             {
                 InitializeRfcommServer();
                 ConnectButton.Content = "Stop Listening";
+                //初めて押したとき
+                if (sw == null)
+                {
+                    //MY Document直下にKinectフォルダを作成
+                    Directory.CreateDirectory(pathKinect);
+                    //ファイル書き込み用のdirectoryを用意
+                    Directory.CreateDirectory(pathSaveFolder);
+
+                    //座標書き込み用csvファイルを用意
+                    sw = new StreamWriter(pathSaveFolder + "Points.csv", true);
+
+                }
             }
             else
             {
@@ -566,34 +587,11 @@ namespace Wpf_Kinectv2_bluetooth
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void RecordPoints_Click(object sender, RoutedEventArgs e)
+        private void RecordPoints_Check(object sender, RoutedEventArgs e)
         {
-            //初めて押したとき
-            if (sw == null)
-            {
-                //MY Document直下にKinectフォルダを作成
-                Directory.CreateDirectory(pathKinect);
-                //座標書き込み用のdirectoryを用意
-                Directory.CreateDirectory(pathSaveFolder);
-                //画像書き込み用のdirectoryを用意
-                Directory.CreateDirectory(pathImageSaveFolder);
-
-                //Bluetoothの受け入れができてないときはRecordPointsボタンを押したときストップウォッチスタート
-                if (ConnectButton.IsChecked==false)StopWatch.Start();
-            }
-
-            if (RecordPoints.IsChecked == true)
-            {
-                //座標書き込み用csvファイルを用意
-                sw = new StreamWriter(pathSaveFolder + "Points.csv", true);
-                RecordPoints.Content = "Stop Record";
-            }
-            else
-            {
-                sw.WriteLine();
-                sw.Close();
-                RecordPoints.Content = "Start Record";
-            }
+            StopWatch.Start();
+            RecordPoints.Content = "Stop Record";
+            ConnectButton.Content = "Start Listening";
         }
 
         /// <summary>
