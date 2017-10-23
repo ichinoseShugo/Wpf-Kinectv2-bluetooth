@@ -41,8 +41,12 @@ namespace Wpf_Kinectv2_bluetooth
         public float StartPosition_X;
         public float StartPosition_Y;
         public float StartPosition_Z;
+        public float CurrentPosition_X;
+        public float CurrentPosition_Y;
+        public float CurrentPosition_Z;
         public int startflag = 1;
         public int connectflag = 1;
+        public int recordflag = 0;
 
         /// <summary>
         /// 日付と時刻
@@ -318,6 +322,14 @@ namespace Wpf_Kinectv2_bluetooth
                         RecordPoints.Content = "Start Record";
 
                     }
+
+                    if(recordflag == 1)
+                    {
+                        recordflag = 0;
+                        StartPosition_X = joint.Value.Position.X;
+                        StartPosition_Y = joint.Value.Position.Y;
+                        StartPosition_Z = joint.Value.Position.Z;
+                    }
                     //左手の座標を表示
                     if (joint.Value.JointType == JointType.HandRight)
                     {
@@ -326,10 +338,13 @@ namespace Wpf_Kinectv2_bluetooth
                         //記録ボタンが押してあるなら座標を書き込み
                         if (RecordPoints.IsChecked == true)
                         {
+                            CurrentPosition_X = joint.Value.Position.X - StartPosition_X;
+                            CurrentPosition_Y = joint.Value.Position.Y - StartPosition_Y;
+                            CurrentPosition_Z = joint.Value.Position.Z - StartPosition_Z;
                             sw.WriteLine(StopWatch.ElapsedMilliseconds + ","
-                            + joint.Value.Position.X + ","
-                            + joint.Value.Position.Y + ","
-                            + joint.Value.Position.X);
+                            + CurrentPosition_X + ","
+                            + CurrentPosition_Y + ","
+                            + CurrentPosition_Z);
                         }
                     }
                     else
@@ -391,6 +406,8 @@ namespace Wpf_Kinectv2_bluetooth
                     Directory.CreateDirectory(pathKinect);
                     //ファイル書き込み用のdirectoryを用意
                     Directory.CreateDirectory(pathSaveFolder);
+                    //画像書き込み用のdirectoryを用意
+                    Directory.CreateDirectory(pathImageSaveFolder);
 
                     //座標書き込み用csvファイルを用意
                     sw = new StreamWriter(pathSaveFolder + "Points.csv", true);
@@ -517,6 +534,7 @@ namespace Wpf_Kinectv2_bluetooth
                     readLength = 0;
                     //break;
                     StopWatch.Start();
+                    recordflag = 1;
                     byte[] data = System.Text.Encoding.UTF8.GetBytes("シグナル");
                     writer.WriteBytes(data);
                     await writer.StoreAsync();
