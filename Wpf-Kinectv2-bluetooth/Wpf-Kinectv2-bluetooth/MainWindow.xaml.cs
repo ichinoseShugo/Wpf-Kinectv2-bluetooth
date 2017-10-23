@@ -26,6 +26,9 @@ namespace Wpf_Kinectv2_bluetooth
     /// </summary>
     public partial class MainWindow : Window
     {
+        /// <summary>
+        /// kinectのインスタンス
+        /// </summary>
         public KinectSensor kinect;
         public ColorFrameReader colorFrameReader;
         public FrameDescription colorFrameDesc;
