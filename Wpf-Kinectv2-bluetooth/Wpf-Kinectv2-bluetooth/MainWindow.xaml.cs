@@ -60,10 +60,16 @@ namespace Wpf_Kinectv2_bluetooth
         /// </summary>
         static public string pathKinect = Environment.GetFolderPath(Environment.SpecialFolder.Personal) + "/Kinect";
         /// <summary>
-        /// 保存先のフォルダ
+        /// 「kinectフォルダのパス+保存先フォルダの名前」フォルダのrenameに使用
         /// </summary>
-        static public string pathSaveFolder = pathKinect + "/TrainingData/" 
-            + dt.Year + digits(dt.Month) + digits(dt.Day) + digits(dt.Hour) + digits(dt.Minute) + "/";
+        /// 
+        static public string dateFolderName = pathKinect + "/TrainingData/"
+            + dt.Year + digits(dt.Month) + digits(dt.Day) + digits(dt.Hour) + digits(dt.Minute);
+        /// <summary>
+        /// 保存先のフォルダパス
+        /// </summary>
+        /// 
+        static public string pathSaveFolder = dateFolderName + "/";
 
         static public string pathImageSaveFolder = pathSaveFolder + "image/";
         /// <summary>
@@ -113,6 +119,12 @@ namespace Wpf_Kinectv2_bluetooth
             StopWatch.Stop();
 
             if (sw != null) sw.Close();
+
+            if (Directory.Exists(@pathSaveFolder))
+            {
+                //Directoryの名前変更
+                //Directory.Move(@pathSaveFolder, dateFolderName+"fin/");
+            }
 
             if (colorFrameReader != null)
             {
@@ -262,7 +274,7 @@ namespace Wpf_Kinectv2_bluetooth
                 //ImageColor.Source = bitmapSource;
                 ImageColor.SetCurrentValue(System.Windows.Controls.Image.SourceProperty, bitmapSource);
                 
-                if (RecordPoints.IsChecked == true && frameCount % 2 ==0)
+                if (RecordPoints.IsChecked == true && frameCount % 3 ==0)
                 {
                     using (Stream stream =
                     new FileStream(pathSaveFolder + "image/" + StopWatch.ElapsedMilliseconds + ".jpg", FileMode.Create))
@@ -353,7 +365,7 @@ namespace Wpf_Kinectv2_bluetooth
                     else
                     {
                         //他の関節の描画
-                        DrawEllipse(joint.Value, 10, System.Windows.Media.Brushes.Blue);
+                        //DrawEllipse(joint.Value, 10, System.Windows.Media.Brushes.Blue);
                     }
                 }
             }
@@ -474,7 +486,7 @@ namespace Wpf_Kinectv2_bluetooth
             sdpWriter.WriteByte((byte)SdpServiceName.Length);
 
             // UTF-8でエンコードされたサービス名の値。
-            sdpWriter.UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding.Utf8;
+            sdpWriter.UnicodeEncoding = UnicodeEncoding.Utf8;
             sdpWriter.WriteString(SdpServiceName);
 
             // RFCOMMサービスプロバイダでSDP属性を設定します。
@@ -502,16 +514,19 @@ namespace Wpf_Kinectv2_bluetooth
                 Console.WriteLine(e.Message);
                 return;
             }
-
             // 指定されたソケットからBluetoothデバイスを取得するためのサポートされている方法
             var remoteDevice = await BluetoothDevice.FromHostNameAsync(socket.Information.RemoteHostName);
             Console.WriteLine(socket.Information.RemoteHostName.DisplayName);
+            Console.WriteLine("ddd");
 
             writer = new DataWriter(socket.OutputStream);
-            writer.UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding.Utf8;
+            writer.UnicodeEncoding = UnicodeEncoding.Utf8;
+
             reader = new DataReader(socket.InputStream);
             reader.InputStreamOptions = InputStreamOptions.Partial;
             reader.UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding.Utf8;
+            //reader.ByteOrder = ByteOrder.LittleEndian;
+
             bool remoteDisconnection = false;
             await Dispatcher.BeginInvoke(
                 new Action(() =>
@@ -523,8 +538,8 @@ namespace Wpf_Kinectv2_bluetooth
             {
                 // Based on the protocol we've defined, the first uint is the size of the message
                 uint readLength = await reader.LoadAsync(sizeof(uint));
-
-
+                uint bytesToRead = reader.ReadUInt32();
+                //Console.WriteLine(reader.ReadString(bytesToRead)+"aaaaaaaaaaa");
                 //シグナルを送る操作
                 if (readLength == 4 && connectflag == 1)
                 {
@@ -611,7 +626,6 @@ namespace Wpf_Kinectv2_bluetooth
         private void RecordPoints_Check(object sender, RoutedEventArgs e)
         {
             StopWatch.Start();
-            RecordPoints.Content = "Stop Record";
             ConnectButton.Content = "Start Listening";
         }
 

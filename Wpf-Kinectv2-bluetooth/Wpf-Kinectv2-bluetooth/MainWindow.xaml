@@ -9,7 +9,7 @@
         Loaded="Window_Loaded" Closing="Window_Closing">
     <Grid>
         <Image x:Name="ImageColor" Width="640" Height="360"/>
-        <CheckBox x:Name="RecordPoints" IsChecked ="false" Content="Start Record" HorizontalAlignment="Left" Margin="0" VerticalAlignment="Bottom" Checked="RecordPoints_Check"/>
+        <CheckBox x:Name="RecordPoints" IsChecked ="false" Content="Recording" HorizontalAlignment="Left" Margin="0" VerticalAlignment="Bottom" Checked="RecordPoints_Check"/>
         <ToggleButton x:Name="ConnectButton" Click="ConnectButton_Click" Content="Start Listening" HorizontalAlignment="Left" VerticalAlignment="Bottom" HorizontalContentAlignment="Center" Margin="92,0,0,0.4"/>
         <TextBlock x:Name="Check" TextWrapping="Wrap" Text="Connect" Margin="340,0,-341,4" VerticalAlignment="Bottom"/>
         <Canvas x:Name="CanvasBody"  Width="512" Height="424"/>
