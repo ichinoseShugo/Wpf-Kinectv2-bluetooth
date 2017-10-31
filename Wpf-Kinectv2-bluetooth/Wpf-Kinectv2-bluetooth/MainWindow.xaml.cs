@@ -41,12 +41,14 @@ namespace Wpf_Kinectv2_bluetooth
         private StreamSocket socket;
         private DataWriter writer;
         private DataReader reader;
-        public float StartPosition_X;
-        public float StartPosition_Y;
-        public float StartPosition_Z;
-        public float CurrentPosition_X;
-        public float CurrentPosition_Y;
-        public float CurrentPosition_Z;
+        /// <summary>
+        /// 計測開始地点の座標
+        /// </summary>
+        public float[] StartPosition = new float[3];
+        /// <summary>
+        /// 計測開始地点を原点とした相対関節座標
+        /// </summary>
+        public float[] CurrentPosition = new float[3];
         public int startflag = 1;
         public int connectflag = 1;
         public int recordflag = 0;
@@ -338,28 +340,29 @@ namespace Wpf_Kinectv2_bluetooth
 
                     }
 
-                    if(recordflag == 1)
-                    {
-                        recordflag = 0;
-                        StartPosition_X = joint.Value.Position.X;
-                        StartPosition_Y = joint.Value.Position.Y;
-                        StartPosition_Z = joint.Value.Position.Z;
-                    }
                     //左手の座標を表示
                     if (joint.Value.JointType == JointType.HandRight)
                     {
+                        //計測開始地点の座標を記録
+                        if (recordflag == 1)
+                        {
+                            recordflag = 0;
+                            StartPosition[0] = joint.Value.Position.X;
+                            StartPosition[1] = joint.Value.Position.Y;
+                            StartPosition[2] = joint.Value.Position.Z;
+                        }
                         DrawEllipse(joint.Value, 10, System.Windows.Media.Brushes.Red);
 
                         //記録ボタンが押してあるなら座標を書き込み
                         if (RecordPoints.IsChecked == true)
                         {
-                            CurrentPosition_X = joint.Value.Position.X - StartPosition_X;
-                            CurrentPosition_Y = joint.Value.Position.Y - StartPosition_Y;
-                            CurrentPosition_Z = joint.Value.Position.Z - StartPosition_Z;
+                            CurrentPosition[0] = joint.Value.Position.X - StartPosition[0];
+                            CurrentPosition[1] = joint.Value.Position.Y - StartPosition[1];
+                            CurrentPosition[2] = joint.Value.Position.Z - StartPosition[2];
                             sw.WriteLine(StopWatch.ElapsedMilliseconds + ","
-                            + CurrentPosition_X + ","
-                            + CurrentPosition_Y + ","
-                            + CurrentPosition_Z);
+                            + CurrentPosition[0] + ","
+                            + CurrentPosition[1] + ","
+                            + CurrentPosition[2]);
                         }
                     }
                     else
@@ -425,7 +428,8 @@ namespace Wpf_Kinectv2_bluetooth
                     Directory.CreateDirectory(pathImageSaveFolder);
 
                     //座標書き込み用csvファイルを用意
-                    sw = new StreamWriter(pathSaveFolder + "Points.csv", true);
+                    sw = new StreamWriter(pathSaveFolder + "Kinect.csv", true);
+                    sw.WriteLine("KinectTime,KinectX,KinectY,KinectZ");
 
                 }
             }
