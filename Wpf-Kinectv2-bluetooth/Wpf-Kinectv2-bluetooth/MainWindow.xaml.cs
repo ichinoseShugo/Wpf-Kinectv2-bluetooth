@@ -430,7 +430,6 @@ namespace Wpf_Kinectv2_bluetooth
                     //座標書き込み用csvファイルを用意
                     sw = new StreamWriter(pathSaveFolder + "Kinect.csv", true);
                     sw.WriteLine("KinectTime,Kinect_X,Kinect_Y,Kinect_Z");
-
                 }
             }
             else
@@ -520,8 +519,6 @@ namespace Wpf_Kinectv2_bluetooth
             }
             // 指定されたソケットからBluetoothデバイスを取得するためのサポートされている方法
             var remoteDevice = await BluetoothDevice.FromHostNameAsync(socket.Information.RemoteHostName);
-            Console.WriteLine(socket.Information.RemoteHostName.DisplayName);
-            Console.WriteLine("ddd");
 
             writer = new DataWriter(socket.OutputStream);
             writer.UnicodeEncoding = UnicodeEncoding.Utf8;
