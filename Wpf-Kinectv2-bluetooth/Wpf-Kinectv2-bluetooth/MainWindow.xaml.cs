@@ -360,9 +360,9 @@ namespace Wpf_Kinectv2_bluetooth
                             CurrentPosition[1] = joint.Value.Position.Y - StartPosition[1];
                             CurrentPosition[2] = joint.Value.Position.Z - StartPosition[2];
                             sw.WriteLine(StopWatch.ElapsedMilliseconds + ","
-                            + CurrentPosition[0] + ","
-                            + CurrentPosition[1] + ","
-                            + CurrentPosition[2]);
+                            + CurrentPosition[0]*100 + ","
+                            + CurrentPosition[1] * 100 + ","
+                            + CurrentPosition[2] * 100);
                         }
                     }
                     else
