@@ -429,7 +429,7 @@ namespace Wpf_Kinectv2_bluetooth
 
                     //座標書き込み用csvファイルを用意
                     sw = new StreamWriter(pathSaveFolder + "Kinect.csv", true);
-                    sw.WriteLine("KinectTime,KinectX,KinectY,KinectZ");
+                    sw.WriteLine("KinectTime,Kinect_X,Kinect_Y,Kinect_Z");
 
                 }
             }
