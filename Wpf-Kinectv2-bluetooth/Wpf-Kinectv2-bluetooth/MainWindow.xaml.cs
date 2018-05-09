@@ -337,7 +337,6 @@ namespace Wpf_Kinectv2_bluetooth
                         sw.WriteLine();
                         sw.Close();
                         RecordPoints.Content = "Start Record";
-
                     }
 
                     //左手の座標を表示
@@ -356,13 +355,14 @@ namespace Wpf_Kinectv2_bluetooth
                         //記録ボタンが押してあるなら座標を書き込み
                         if (RecordPoints.IsChecked == true)
                         {
-                            CurrentPosition[0] = joint.Value.Position.X - StartPosition[0];
-                            CurrentPosition[1] = joint.Value.Position.Y - StartPosition[1];
-                            CurrentPosition[2] = joint.Value.Position.Z - StartPosition[2];
-                            sw.WriteLine(StopWatch.ElapsedMilliseconds + ","
-                            + CurrentPosition[0]*100 + ","
-                            + CurrentPosition[1] * 100 + ","
-                            + CurrentPosition[2] * 100);
+                            var CurrentTime = StopWatch.ElapsedMilliseconds;
+                            CurrentPosition[0] = (joint.Value.Position.X - StartPosition[0]) * 100;
+                            CurrentPosition[1] = (joint.Value.Position.Y - StartPosition[1]) * 100;
+                            CurrentPosition[2] = (joint.Value.Position.Z - StartPosition[2]) * 100;
+                            sw.WriteLine(CurrentTime + ","
+                            + CurrentPosition[0] + ","
+                            + CurrentPosition[1] + ","
+                            + CurrentPosition[2]);
                         }
                     }
                     else
@@ -454,7 +454,7 @@ namespace Wpf_Kinectv2_bluetooth
             socketListener.ConnectionReceived += OnConnectionReceived;
 
             // Listeningをスタート
-            //  
+            //
             //awaitはasyncキーワードによって変更された非同期メソッドでのみ使用でる.
             //中断ポイントを挿入することで,メソッドの実行を,待機中のタスクが完了するまで中断する
             //async修飾子を使用して定義され,通常1つ以上のawait式を含むメソッドが,"非同期メソッド"と呼る
@@ -539,7 +539,7 @@ namespace Wpf_Kinectv2_bluetooth
             {
                 // Based on the protocol we've defined, the first uint is the size of the message
                 uint readLength = await reader.LoadAsync(sizeof(uint));
-                uint bytesToRead = reader.ReadUInt32();
+                //uint bytesToRead = reader.ReadUInt32();
                 //Console.WriteLine(reader.ReadString(bytesToRead)+"aaaaaaaaaaa");
                 //シグナルを送る操作
                 if (readLength == 4 && connectflag == 1)
